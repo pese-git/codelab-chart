@@ -1,0 +1,60 @@
+{{- if .Values.services.redis.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "codelab.fullname" . }}-redis
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "redis" | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "codelab.selectorLabels" . | nindent 6 }}
+      {{- include "codelab.componentLabels" "redis" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "codelab.selectorLabels" . | nindent 8 }}
+        {{- include "codelab.componentLabels" "redis" | nindent 8 }}
+    spec:
+      {{- if .Values.securityContext.enabled }}
+      securityContext:
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.securityContext.runAsGroup }}
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+      {{- end }}
+      containers:
+      - name: redis
+        image: "{{ .Values.images.redis.repository }}:{{ .Values.images.redis.tag }}"
+        imagePullPolicy: {{ .Values.images.redis.pullPolicy }}
+        ports:
+        - name: redis
+          containerPort: {{ .Values.services.redis.port }}
+          protocol: TCP
+        {{- if .Values.services.redis.healthcheck.enabled }}
+        livenessProbe:
+          exec:
+            command:
+            {{- range .Values.services.redis.healthcheck.command }}
+            - {{ . | quote }}
+            {{- end }}
+          initialDelaySeconds: {{ .Values.services.redis.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.redis.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.redis.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.redis.healthcheck.failureThreshold }}
+        readinessProbe:
+          exec:
+            command:
+            {{- range .Values.services.redis.healthcheck.command }}
+            - {{ . | quote }}
+            {{- end }}
+          initialDelaySeconds: {{ .Values.services.redis.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.redis.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.redis.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.redis.healthcheck.failureThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources.redis | nindent 10 }}
+{{- end }}

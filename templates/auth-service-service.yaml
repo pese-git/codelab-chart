@@ -1,0 +1,19 @@
+{{- if .Values.services.authService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "codelab.fullname" . }}-auth-service
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "auth-service" | nindent 4 }}
+spec:
+  type: {{ .Values.services.authService.type }}
+  ports:
+  - port: {{ .Values.services.authService.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "codelab.selectorLabels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "auth-service" | nindent 4 }}
+{{- end }}

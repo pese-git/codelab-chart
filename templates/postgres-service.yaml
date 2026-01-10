@@ -1,0 +1,19 @@
+{{- if .Values.services.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "codelab.fullname" . }}-postgres
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "postgres" | nindent 4 }}
+spec:
+  type: {{ .Values.services.postgres.type }}
+  ports:
+  - port: {{ .Values.services.postgres.port }}
+    targetPort: postgres
+    protocol: TCP
+    name: postgres
+  selector:
+    {{- include "codelab.selectorLabels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "postgres" | nindent 4 }}
+{{- end }}

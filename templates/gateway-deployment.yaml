@@ -1,0 +1,82 @@
+{{- if .Values.services.gateway.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "codelab.fullname" . }}-gateway
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "gateway" | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "codelab.selectorLabels" . | nindent 6 }}
+      {{- include "codelab.componentLabels" "gateway" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "codelab.selectorLabels" . | nindent 8 }}
+        {{- include "codelab.componentLabels" "gateway" | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.securityContext.enabled }}
+      securityContext:
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.securityContext.runAsGroup }}
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+      {{- end }}
+      containers:
+      - name: gateway
+        image: "{{ .Values.images.gateway.repository }}:{{ .Values.images.gateway.tag }}"
+        imagePullPolicy: {{ .Values.images.gateway.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.gateway.port }}
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: {{ .Values.environment | quote }}
+        - name: PORT
+          value: {{ .Values.services.gateway.port | quote }}
+        - name: GATEWAY__AGENT_URL
+          value: "http://{{ include "codelab.fullname" . }}-agent-runtime:{{ .Values.services.agentRuntime.port }}"
+        - name: GATEWAY__AUTH_SERVICE_URL
+          value: "http://{{ include "codelab.fullname" . }}-auth-service:{{ .Values.services.authService.port }}"
+        {{- range $key, $value := .Values.services.gateway.env }}
+        {{- if and (ne $key "PORT") (ne $key "GATEWAY__AGENT_URL") (ne $key "GATEWAY__AUTH_SERVICE_URL") }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+        {{- range $key, $value := .Values.services.gateway.secrets }}
+        - name: {{ $key }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "codelab.fullname" $ }}-gateway-secret
+              key: {{ $key }}
+        {{- end }}
+        {{- if .Values.services.gateway.healthcheck.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.services.gateway.healthcheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.services.gateway.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.gateway.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.gateway.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.gateway.healthcheck.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.services.gateway.healthcheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.services.gateway.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.gateway.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.gateway.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.gateway.healthcheck.failureThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources.gateway | nindent 10 }}
+{{- end }}

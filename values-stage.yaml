@@ -1,0 +1,169 @@
+# Конфигурация для staging окружения
+environment: staging
+replicaCount: 2
+
+# Образы из Harbor registry
+images:
+  authService:
+    repository: harbor.openidealab.com/codelab/auth-service
+    tag: latest
+  gateway:
+    repository: harbor.openidealab.com/codelab/gateway
+    tag: latest
+  agentRuntime:
+    repository: harbor.openidealab.com/codelab/agent-runtime
+    tag: latest
+  llmProxy:
+    repository: harbor.openidealab.com/codelab/llm-proxy
+    tag: latest
+  website:
+    repository: harbor.openidealab.com/codelab/website
+    tag: latest
+
+# Настройки Ingress
+ingress:
+  enabled: true
+  className: nginx
+  host: codelab-stage.example.com
+  tls: true
+  tlsSecretName: codelab-stage-tls
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+
+# Используем внутренний PostgreSQL для staging
+services:
+  authService:
+    database:
+      type: postgres
+      # Используем внутренний postgres из этого чарта
+      useInternal: true
+      host: postgres
+      port: 5432
+      name: auth_db
+      user: codelab
+      password: "staging-password-change-me"
+    secrets:
+      AUTH_SERVICE__MASTER_KEY: "staging-master-key-change-me"
+    persistence:
+      data:
+        enabled: true
+        size: 2Gi
+        storageClass: ""
+      keys:
+        enabled: true
+        size: 500Mi
+        storageClass: ""
+  
+  agentRuntime:
+    database:
+      type: postgres
+      # Используем внутренний postgres из этого чарта
+      useInternal: true
+      host: postgres
+      port: 5432
+      name: agent_runtime
+      user: codelab
+      password: "staging-password-change-me"
+    secrets:
+      AGENT_RUNTIME__INTERNAL_API_KEY: "staging-api-key-change-me"
+    persistence:
+      data:
+        enabled: true
+        size: 10Gi
+        storageClass: ""
+  
+  gateway:
+    env:
+      GATEWAY__LOG_LEVEL: "INFO"
+      GATEWAY__USE_JWT_AUTH: "true"
+    secrets:
+      GATEWAY__INTERNAL_API_KEY: "staging-api-key-change-me"
+  
+  llmProxy:
+    env:
+      LLM_PROXY__LOG_LEVEL: "INFO"
+    secrets:
+      LLM_PROXY__INTERNAL_API_KEY: "staging-api-key-change-me"
+      LLM_PROXY__LITELLM_PROXY_URL: "http://litellm-proxy-staging:4000"
+      LLM_PROXY__LITELLM_API_KEY: "staging-litellm-key"
+  
+  # Включаем внутренний PostgreSQL для staging
+  postgres:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: ""
+    secrets:
+      POSTGRES_PASSWORD: "staging-password-change-me"
+  
+  redis:
+    enabled: true
+
+# Staging ресурсы (меньше чем production, больше чем dev)
+resources:
+  authService:
+    requests:
+      cpu: 300m
+      memory: 384Mi
+    limits:
+      cpu: 1500m
+      memory: 768Mi
+  
+  gateway:
+    requests:
+      cpu: 300m
+      memory: 384Mi
+    limits:
+      cpu: 1500m
+      memory: 768Mi
+  
+  agentRuntime:
+    requests:
+      cpu: 750m
+      memory: 768Mi
+    limits:
+      cpu: 3000m
+      memory: 2Gi
+  
+  llmProxy:
+    requests:
+      cpu: 300m
+      memory: 384Mi
+    limits:
+      cpu: 1500m
+      memory: 768Mi
+  
+  website:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 400m
+      memory: 256Mi
+  
+  redis:
+    requests:
+      cpu: 150m
+      memory: 192Mi
+    limits:
+      cpu: 750m
+      memory: 384Mi
+  
+  postgres:
+    requests:
+      cpu: 200m
+      memory: 384Mi
+    limits:
+      cpu: 1000m
+      memory: 768Mi
+
+# Security context для staging
+securityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000

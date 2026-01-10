@@ -1,0 +1,373 @@
+# =============================================================================
+# Общие настройки CodeLab
+# =============================================================================
+## @param environment Окружение развертывания
+environment: development
+
+## @param replicaCount Количество реплик для каждого сервиса (по умолчанию)
+replicaCount: 1
+
+## @param imagePullSecrets Секреты для доступа к приватным registry
+## Пример:
+## imagePullSecrets:
+##   - name: harbor-registry
+imagePullSecrets: []
+
+# =============================================================================
+# Настройки образов
+# =============================================================================
+images:
+  ## Настройки образа auth-service
+  authService:
+    repository: harbor.openidealab.com/codelab/auth-service
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  ## Настройки образа gateway
+  gateway:
+    repository: harbor.openidealab.com/codelab/gateway
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  ## Настройки образа agent-runtime
+  agentRuntime:
+    repository: harbor.openidealab.com/codelab/agent-runtime
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  ## Настройки образа llm-proxy
+  llmProxy:
+    repository: harbor.openidealab.com/codelab/llm-proxy
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  ## Настройки образа website
+  website:
+    repository: harbor.openidealab.com/codelab/website
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  ## Настройки образа redis
+  redis:
+    repository: redis
+    tag: 7-alpine
+    pullPolicy: IfNotPresent
+  
+  ## Настройки образа postgres
+  postgres:
+    repository: postgres
+    tag: 16-alpine
+    pullPolicy: IfNotPresent
+
+# =============================================================================
+# Настройки Ingress
+# =============================================================================
+ingress:
+  ## @param ingress.enabled Включить Ingress
+  enabled: true
+  ## @param ingress.className Класс Ingress контроллера
+  className: nginx
+  ## @param ingress.host Имя хоста для доступа к CodeLab
+  host: codelab.example.com
+  ## @param ingress.annotations Аннотации для Ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    # Поддержка WebSocket для gateway
+    nginx.ingress.kubernetes.io/websocket-services: "gateway"
+  ## @param ingress.tls Включить TLS
+  tls: false
+  ## @param ingress.tlsSecretName Имя секрета с TLS сертификатом
+  tlsSecretName: codelab-tls
+  ## @param ingress.paths Настройка путей для маршрутизации
+  paths:
+    # OAuth endpoints для auth-service
+    oauth:
+      path: /oauth
+      pathType: Prefix
+      service: auth-service
+      port: 8003
+    # Well-known endpoints для auth-service
+    wellknown:
+      path: /.well-known
+      pathType: Prefix
+      service: auth-service
+      port: 8003
+    # API endpoints для gateway
+    api:
+      path: /api/v1
+      pathType: Prefix
+      service: gateway
+      port: 8000
+    # Website (SPA) доступен по корневому пути /
+    website:
+      path: /
+      pathType: Prefix
+      service: website
+      port: 80
+
+# =============================================================================
+# Настройки сервисов
+# =============================================================================
+services:
+  ## Настройки auth-service
+  authService:
+    enabled: true
+    port: 8003
+    type: ClusterIP
+    env:
+      AUTH_SERVICE__LOG_LEVEL: "DEBUG"
+      AUTH_SERVICE__ENABLE_RATE_LIMITING: "false"
+      AUTH_SERVICE__JWT_ISSUER: "https://auth.codelab.local"
+      AUTH_SERVICE__JWT_AUDIENCE: "codelab-api"
+      AUTH_SERVICE__ACCESS_TOKEN_LIFETIME: "900"
+      AUTH_SERVICE__REFRESH_TOKEN_LIFETIME: "2592000"
+      AUTH_SERVICE__PRIVATE_KEY_PATH: "/app/keys/private_key.pem"
+      AUTH_SERVICE__PUBLIC_KEY_PATH: "/app/keys/public_key.pem"
+    ## Секретные переменные (будут созданы из Secret)
+    secrets:
+      AUTH_SERVICE__MASTER_KEY: "change-me-in-production"
+    ## Настройки базы данных для auth-service
+    database:
+      # Тип БД: sqlite или postgres
+      type: "sqlite"
+      # Для SQLite
+      sqliteUrl: "sqlite:///data/auth.db"
+      # Использовать внутренний postgres (из этого чарта)
+      useInternal: true
+      # Для внешнего postgres укажите параметры ниже
+      host: "postgres"
+      port: 5432
+      name: "auth_db"
+      user: "codelab"
+      password: "codelab_password"
+      # Полный URL БД (если указан, переопределяет параметры выше)
+      url: ""
+    ## Volumes для auth-service
+    persistence:
+      data:
+        enabled: true
+        size: 1Gi
+        storageClass: ""
+      keys:
+        enabled: true
+        size: 100Mi
+        storageClass: ""
+    healthcheck:
+      enabled: true
+      path: /health
+      initialDelaySeconds: 5
+      periodSeconds: 30
+      timeoutSeconds: 10
+      failureThreshold: 3
+  
+  ## Настройки gateway
+  gateway:
+    enabled: true
+    port: 8000
+    type: ClusterIP
+    env:
+      GATEWAY__LOG_LEVEL: "DEBUG"
+      GATEWAY__WS_HEARTBEAT_INTERVAL: "30"
+      GATEWAY__WS_CLOSE_TIMEOUT: "10"
+      GATEWAY__MAX_CONCURRENT_REQUESTS: "100"
+      GATEWAY__REQUEST_TIMEOUT: "30"
+      GATEWAY__USE_JWT_AUTH: "true"
+    secrets:
+      GATEWAY__INTERNAL_API_KEY: "change-me-in-production"
+    healthcheck:
+      enabled: true
+      path: /health
+      initialDelaySeconds: 5
+      periodSeconds: 30
+      timeoutSeconds: 10
+      failureThreshold: 3
+  
+  ## Настройки agent-runtime
+  agentRuntime:
+    enabled: true
+    port: 8001
+    type: ClusterIP
+    env:
+      AGENT_RUNTIME__LOG_LEVEL: "DEBUG"
+      AGENT_RUNTIME__MAX_CONCURRENT_REQUESTS: "100"
+      AGENT_RUNTIME__REQUEST_TIMEOUT: "30"
+      AGENT_RUNTIME__LLM_MODEL: "Qwen/Qwen3-0.6B"
+    secrets:
+      AGENT_RUNTIME__INTERNAL_API_KEY: "change-me-in-production"
+    ## Настройки базы данных для agent-runtime
+    database:
+      # Тип БД: sqlite или postgres
+      type: "sqlite"
+      # Для SQLite
+      sqliteUrl: "sqlite:///data/agent_runtime.db"
+      # Для PostgreSQL (если type: postgres)
+      useInternal: true
+      host: "postgres"
+      port: 5432
+      name: "agent_runtime"
+      user: "codelab"
+      password: "codelab_password"
+      # Полный URL БД (если указан, переопределяет параметры выше)
+      url: ""
+    persistence:
+      data:
+        enabled: true
+        size: 5Gi
+        storageClass: ""
+    healthcheck:
+      enabled: true
+      path: /health
+      initialDelaySeconds: 5
+      periodSeconds: 30
+      timeoutSeconds: 10
+      failureThreshold: 3
+  
+  ## Настройки llm-proxy
+  llmProxy:
+    enabled: true
+    port: 8002
+    type: ClusterIP
+    env:
+      LLM_PROXY__DEFAULT_MODEL: "gpt-3.5-turbo"
+      LLM_PROXY__LLM_MODE: "litellm"
+      LLM_PROXY__LOG_LEVEL: "DEBUG"
+      LLM_PROXY__MAX_CONCURRENT_REQUESTS: "100"
+      LLM_PROXY__REQUEST_TIMEOUT: "30"
+    secrets:
+      LLM_PROXY__INTERNAL_API_KEY: "change-me-in-production"
+      LLM_PROXY__LITELLM_PROXY_URL: "http://litellm-proxy-external:4000"
+      LLM_PROXY__LITELLM_API_KEY: "sk-1234"
+    healthcheck:
+      enabled: true
+      path: /health
+      initialDelaySeconds: 5
+      periodSeconds: 30
+      timeoutSeconds: 10
+      failureThreshold: 3
+  
+  ## Настройки website
+  website:
+    enabled: true
+    port: 80
+    type: ClusterIP
+    healthcheck:
+      enabled: true
+      path: /
+      initialDelaySeconds: 5
+      periodSeconds: 30
+      timeoutSeconds: 5
+      failureThreshold: 3
+  
+  ## Настройки redis
+  redis:
+    enabled: true
+    port: 6379
+    type: ClusterIP
+    healthcheck:
+      enabled: true
+      command: ["redis-cli", "ping"]
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 5
+  
+  ## Настройки postgres
+  postgres:
+    enabled: true
+    port: 5432
+    type: ClusterIP
+    env:
+      POSTGRES_USER: "codelab"
+      POSTGRES_DB: "codelab"
+      POSTGRES_MULTIPLE_DATABASES: "agent_runtime,auth_db"
+    secrets:
+      POSTGRES_PASSWORD: "codelab_password"
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
+    ## Init scripts (будут созданы из ConfigMap)
+    initScripts:
+      enabled: true
+      # Скрипты будут добавлены в templates
+    healthcheck:
+      enabled: true
+      command: ["pg_isready", "-U", "codelab"]
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 5
+
+# =============================================================================
+# Настройки ресурсов
+# =============================================================================
+resources:
+  authService:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  
+  gateway:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  
+  agentRuntime:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  
+  llmProxy:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  
+  website:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  
+  redis:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  
+  postgres:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# =============================================================================
+# Настройки безопасности
+# =============================================================================
+securityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000

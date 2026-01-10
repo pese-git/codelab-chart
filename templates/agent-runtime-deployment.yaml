@@ -1,0 +1,100 @@
+{{- if .Values.services.agentRuntime.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "codelab.fullname" . }}-agent-runtime
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "agent-runtime" | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "codelab.selectorLabels" . | nindent 6 }}
+      {{- include "codelab.componentLabels" "agent-runtime" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "codelab.selectorLabels" . | nindent 8 }}
+        {{- include "codelab.componentLabels" "agent-runtime" | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.securityContext.enabled }}
+      securityContext:
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.securityContext.runAsGroup }}
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+      {{- end }}
+      containers:
+      - name: agent-runtime
+        image: "{{ .Values.images.agentRuntime.repository }}:{{ .Values.images.agentRuntime.tag }}"
+        imagePullPolicy: {{ .Values.images.agentRuntime.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.agentRuntime.port }}
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: {{ .Values.environment | quote }}
+        - name: PORT
+          value: {{ .Values.services.agentRuntime.port | quote }}
+        - name: AGENT_RUNTIME__GATEWAY_URL
+          value: "http://{{ include "codelab.fullname" . }}-gateway:{{ .Values.services.gateway.port }}"
+        - name: AGENT_RUNTIME__LLM_PROXY_URL
+          value: "http://{{ include "codelab.fullname" . }}-llm-proxy:{{ .Values.services.llmProxy.port }}"
+        {{- range $key, $value := .Values.services.agentRuntime.env }}
+        {{- if and (ne $key "PORT") (ne $key "AGENT_RUNTIME__GATEWAY_URL") (ne $key "AGENT_RUNTIME__LLM_PROXY_URL") }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+        - name: AGENT_RUNTIME__DB_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "codelab.fullname" . }}-agent-runtime-secret
+              key: AGENT_RUNTIME__DB_URL
+        {{- range $key, $value := .Values.services.agentRuntime.secrets }}
+        {{- if ne $key "AGENT_RUNTIME__DB_URL" }}
+        - name: {{ $key }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "codelab.fullname" $ }}-agent-runtime-secret
+              key: {{ $key }}
+        {{- end }}
+        {{- end }}
+        volumeMounts:
+        {{- if .Values.services.agentRuntime.persistence.data.enabled }}
+        - name: data
+          mountPath: /app/data
+        {{- end }}
+        {{- if .Values.services.agentRuntime.healthcheck.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.services.agentRuntime.healthcheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.services.agentRuntime.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.agentRuntime.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.agentRuntime.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.agentRuntime.healthcheck.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.services.agentRuntime.healthcheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.services.agentRuntime.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.agentRuntime.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.agentRuntime.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.agentRuntime.healthcheck.failureThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources.agentRuntime | nindent 10 }}
+      volumes:
+      {{- if .Values.services.agentRuntime.persistence.data.enabled }}
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ include "codelab.fullname" . }}-agent-runtime-data
+      {{- end }}
+{{- end }}

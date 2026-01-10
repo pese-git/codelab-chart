@@ -1,0 +1,19 @@
+{{- if .Values.services.llmProxy.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "codelab.fullname" . }}-llm-proxy
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "llm-proxy" | nindent 4 }}
+spec:
+  type: {{ .Values.services.llmProxy.type }}
+  ports:
+  - port: {{ .Values.services.llmProxy.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "codelab.selectorLabels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "llm-proxy" | nindent 4 }}
+{{- end }}

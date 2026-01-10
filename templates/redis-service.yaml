@@ -1,0 +1,19 @@
+{{- if .Values.services.redis.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "codelab.fullname" . }}-redis
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "redis" | nindent 4 }}
+spec:
+  type: {{ .Values.services.redis.type }}
+  ports:
+  - port: {{ .Values.services.redis.port }}
+    targetPort: redis
+    protocol: TCP
+    name: redis
+  selector:
+    {{- include "codelab.selectorLabels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "redis" | nindent 4 }}
+{{- end }}

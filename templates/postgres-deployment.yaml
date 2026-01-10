@@ -1,0 +1,90 @@
+{{- if .Values.services.postgres.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "codelab.fullname" . }}-postgres
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "postgres" | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "codelab.selectorLabels" . | nindent 6 }}
+      {{- include "codelab.componentLabels" "postgres" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "codelab.selectorLabels" . | nindent 8 }}
+        {{- include "codelab.componentLabels" "postgres" | nindent 8 }}
+    spec:
+      {{- if .Values.securityContext.enabled }}
+      securityContext:
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+      {{- end }}
+      containers:
+      - name: postgres
+        image: "{{ .Values.images.postgres.repository }}:{{ .Values.images.postgres.tag }}"
+        imagePullPolicy: {{ .Values.images.postgres.pullPolicy }}
+        ports:
+        - name: postgres
+          containerPort: {{ .Values.services.postgres.port }}
+          protocol: TCP
+        env:
+        {{- range $key, $value := .Values.services.postgres.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- range $key, $value := .Values.services.postgres.secrets }}
+        - name: {{ $key }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "codelab.fullname" $ }}-postgres-secret
+              key: {{ $key }}
+        {{- end }}
+        volumeMounts:
+        {{- if .Values.services.postgres.persistence.enabled }}
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        {{- end }}
+        {{- if .Values.services.postgres.initScripts.enabled }}
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d
+          readOnly: true
+        {{- end }}
+        {{- if .Values.services.postgres.healthcheck.enabled }}
+        livenessProbe:
+          exec:
+            command:
+            {{- range .Values.services.postgres.healthcheck.command }}
+            - {{ . | quote }}
+            {{- end }}
+          initialDelaySeconds: {{ .Values.services.postgres.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.postgres.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.postgres.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.postgres.healthcheck.failureThreshold }}
+        readinessProbe:
+          exec:
+            command:
+            {{- range .Values.services.postgres.healthcheck.command }}
+            - {{ . | quote }}
+            {{- end }}
+          initialDelaySeconds: {{ .Values.services.postgres.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.postgres.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.postgres.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.postgres.healthcheck.failureThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources.postgres | nindent 10 }}
+      volumes:
+      {{- if .Values.services.postgres.persistence.enabled }}
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ include "codelab.fullname" . }}-postgres-data
+      {{- end }}
+      {{- if .Values.services.postgres.initScripts.enabled }}
+      - name: init-scripts
+        configMap:
+          name: {{ include "codelab.fullname" . }}-postgres-init
+      {{- end }}
+{{- end }}

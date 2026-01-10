@@ -1,0 +1,53 @@
+{{- if .Values.services.website.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "codelab.fullname" . }}-website
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "website" | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "codelab.selectorLabels" . | nindent 6 }}
+      {{- include "codelab.componentLabels" "website" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "codelab.selectorLabels" . | nindent 8 }}
+        {{- include "codelab.componentLabels" "website" | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: website
+        image: "{{ .Values.images.website.repository }}:{{ .Values.images.website.tag }}"
+        imagePullPolicy: {{ .Values.images.website.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.website.port }}
+          protocol: TCP
+        {{- if .Values.services.website.healthcheck.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.services.website.healthcheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.services.website.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.website.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.website.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.website.healthcheck.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.services.website.healthcheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.services.website.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.website.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.website.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.website.healthcheck.failureThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources.website | nindent 10 }}
+{{- end }}

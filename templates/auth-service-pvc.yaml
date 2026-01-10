@@ -1,0 +1,39 @@
+{{- if .Values.services.authService.enabled }}
+{{- if .Values.services.authService.persistence.data.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "codelab.fullname" . }}-auth-service-data
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "auth-service" | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.services.authService.persistence.data.size }}
+  {{- if .Values.services.authService.persistence.data.storageClass }}
+  storageClassName: {{ .Values.services.authService.persistence.data.storageClass }}
+  {{- end }}
+---
+{{- end }}
+{{- if .Values.services.authService.persistence.keys.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "codelab.fullname" . }}-auth-service-keys
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "auth-service" | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.services.authService.persistence.keys.size }}
+  {{- if .Values.services.authService.persistence.keys.storageClass }}
+  storageClassName: {{ .Values.services.authService.persistence.keys.storageClass }}
+  {{- end }}
+{{- end }}
+{{- end }}

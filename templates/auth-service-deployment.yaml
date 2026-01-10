@@ -1,0 +1,107 @@
+{{- if .Values.services.authService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "codelab.fullname" . }}-auth-service
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "auth-service" | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "codelab.selectorLabels" . | nindent 6 }}
+      {{- include "codelab.componentLabels" "auth-service" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "codelab.selectorLabels" . | nindent 8 }}
+        {{- include "codelab.componentLabels" "auth-service" | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.securityContext.enabled }}
+      securityContext:
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.securityContext.runAsGroup }}
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+      {{- end }}
+      containers:
+      - name: auth-service
+        image: "{{ .Values.images.authService.repository }}:{{ .Values.images.authService.tag }}"
+        imagePullPolicy: {{ .Values.images.authService.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.authService.port }}
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: {{ .Values.environment | quote }}
+        - name: PORT
+          value: {{ .Values.services.authService.port | quote }}
+        - name: AUTH_SERVICE__REDIS_URL
+          value: "redis://{{ include "codelab.fullname" . }}-redis:{{ .Values.services.redis.port }}/1"
+        {{- range $key, $value := .Values.services.authService.env }}
+        {{- if and (ne $key "PORT") (ne $key "AUTH_SERVICE__REDIS_URL") }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+        - name: AUTH_SERVICE__DB_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "codelab.fullname" . }}-auth-service-secret
+              key: AUTH_SERVICE__DB_URL
+        {{- range $key, $value := .Values.services.authService.secrets }}
+        {{- if ne $key "AUTH_SERVICE__DB_URL" }}
+        - name: {{ $key }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "codelab.fullname" $ }}-auth-service-secret
+              key: {{ $key }}
+        {{- end }}
+        {{- end }}
+        volumeMounts:
+        {{- if .Values.services.authService.persistence.data.enabled }}
+        - name: data
+          mountPath: /app/data
+        {{- end }}
+        {{- if .Values.services.authService.persistence.keys.enabled }}
+        - name: keys
+          mountPath: /app/keys
+        {{- end }}
+        {{- if .Values.services.authService.healthcheck.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.services.authService.healthcheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.services.authService.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.authService.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.authService.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.authService.healthcheck.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.services.authService.healthcheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.services.authService.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.authService.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.authService.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.authService.healthcheck.failureThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources.authService | nindent 10 }}
+      volumes:
+      {{- if .Values.services.authService.persistence.data.enabled }}
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ include "codelab.fullname" . }}-auth-service-data
+      {{- end }}
+      {{- if .Values.services.authService.persistence.keys.enabled }}
+      - name: keys
+        persistentVolumeClaim:
+          claimName: {{ include "codelab.fullname" . }}-auth-service-keys
+      {{- end }}
+{{- end }}

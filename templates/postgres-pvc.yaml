@@ -1,0 +1,20 @@
+{{- if .Values.services.postgres.enabled }}
+{{- if .Values.services.postgres.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "codelab.fullname" . }}-postgres-data
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "postgres" | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.services.postgres.persistence.size }}
+  {{- if .Values.services.postgres.persistence.storageClass }}
+  storageClassName: {{ .Values.services.postgres.persistence.storageClass }}
+  {{- end }}
+{{- end }}
+{{- end }}

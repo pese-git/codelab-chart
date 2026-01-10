@@ -1,0 +1,78 @@
+{{- if .Values.services.llmProxy.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "codelab.fullname" . }}-llm-proxy
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "llm-proxy" | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "codelab.selectorLabels" . | nindent 6 }}
+      {{- include "codelab.componentLabels" "llm-proxy" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "codelab.selectorLabels" . | nindent 8 }}
+        {{- include "codelab.componentLabels" "llm-proxy" | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.securityContext.enabled }}
+      securityContext:
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.securityContext.runAsGroup }}
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+      {{- end }}
+      containers:
+      - name: llm-proxy
+        image: "{{ .Values.images.llmProxy.repository }}:{{ .Values.images.llmProxy.tag }}"
+        imagePullPolicy: {{ .Values.images.llmProxy.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.llmProxy.port }}
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: {{ .Values.environment | quote }}
+        - name: PORT
+          value: {{ .Values.services.llmProxy.port | quote }}
+        {{- range $key, $value := .Values.services.llmProxy.env }}
+        {{- if ne $key "PORT" }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+        {{- range $key, $value := .Values.services.llmProxy.secrets }}
+        - name: {{ $key }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "codelab.fullname" $ }}-llm-proxy-secret
+              key: {{ $key }}
+        {{- end }}
+        {{- if .Values.services.llmProxy.healthcheck.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.services.llmProxy.healthcheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.services.llmProxy.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.llmProxy.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.llmProxy.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.llmProxy.healthcheck.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.services.llmProxy.healthcheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.services.llmProxy.healthcheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.services.llmProxy.healthcheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.services.llmProxy.healthcheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.services.llmProxy.healthcheck.failureThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources.llmProxy | nindent 10 }}
+{{- end }}

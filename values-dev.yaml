@@ -1,0 +1,116 @@
+# Пример конфигурации для development окружения
+environment: development
+replicaCount: 1
+
+# Образы из Harbor registry
+images:
+  authService:
+    repository: harbor.openidealab.com/codelab/auth-service
+    tag: latest
+  gateway:
+    repository: harbor.openidealab.com/codelab/gateway
+    tag: latest
+  agentRuntime:
+    repository: harbor.openidealab.com/codelab/agent-runtime
+    tag: latest
+  llmProxy:
+    repository: harbor.openidealab.com/codelab/llm-proxy
+    tag: latest
+  website:
+    repository: harbor.openidealab.com/codelab/website
+    tag: latest
+
+# Настройки Ingress
+ingress:
+  enabled: true
+  className: nginx
+  host: codelab.local
+  tls: false
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+
+# Используем SQLite для разработки
+services:
+  authService:
+    database:
+      type: sqlite
+      sqliteUrl: "sqlite:///data/auth.db"
+    secrets:
+      AUTH_SERVICE__MASTER_KEY: "dev-master-key"
+  
+  agentRuntime:
+    database:
+      type: sqlite
+      sqliteUrl: "sqlite:///data/agent_runtime.db"
+    secrets:
+      AGENT_RUNTIME__INTERNAL_API_KEY: "dev-api-key"
+  
+  gateway:
+    env:
+      GATEWAY__USE_JWT_AUTH: "false"
+    secrets:
+      GATEWAY__INTERNAL_API_KEY: "dev-api-key"
+  
+  llmProxy:
+    secrets:
+      LLM_PROXY__INTERNAL_API_KEY: "dev-api-key"
+      LLM_PROXY__LITELLM_PROXY_URL: "http://litellm-proxy:4000"
+      LLM_PROXY__LITELLM_API_KEY: "sk-dev-1234"
+
+# Минимальные ресурсы для разработки
+resources:
+  authService:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  
+  gateway:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  
+  agentRuntime:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  
+  llmProxy:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  
+  website:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  
+  redis:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  
+  postgres:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

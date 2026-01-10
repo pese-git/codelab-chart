@@ -1,0 +1,19 @@
+{{- if .Values.services.gateway.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "codelab.fullname" . }}-gateway
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "gateway" | nindent 4 }}
+spec:
+  type: {{ .Values.services.gateway.type }}
+  ports:
+  - port: {{ .Values.services.gateway.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "codelab.selectorLabels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "gateway" | nindent 4 }}
+{{- end }}

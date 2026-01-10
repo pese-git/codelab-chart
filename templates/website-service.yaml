@@ -1,0 +1,19 @@
+{{- if .Values.services.website.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "codelab.fullname" . }}-website
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "website" | nindent 4 }}
+spec:
+  type: {{ .Values.services.website.type }}
+  ports:
+  - port: {{ .Values.services.website.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "codelab.selectorLabels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "website" | nindent 4 }}
+{{- end }}

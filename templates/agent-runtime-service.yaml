@@ -1,0 +1,19 @@
+{{- if .Values.services.agentRuntime.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "codelab.fullname" . }}-agent-runtime
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "agent-runtime" | nindent 4 }}
+spec:
+  type: {{ .Values.services.agentRuntime.type }}
+  ports:
+  - port: {{ .Values.services.agentRuntime.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "codelab.selectorLabels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "agent-runtime" | nindent 4 }}
+{{- end }}

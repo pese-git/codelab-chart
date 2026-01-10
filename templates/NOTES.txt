@@ -1,0 +1,58 @@
+CodeLab успешно установлен!
+
+Релиз: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+Для доступа к приложению:
+
+{{- if .Values.ingress.enabled }}
+1. Приложение доступно по адресу:
+   {{- if .Values.ingress.tls }}
+   https://{{ .Values.ingress.host }}
+   {{- else }}
+   http://{{ .Values.ingress.host }}
+   {{- end }}
+
+   - Gateway API: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.host }}/
+   - Auth Service: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.host }}/auth/
+
+{{- else }}
+1. Ingress отключен. Для доступа к сервисам используйте port-forward:
+
+   Gateway:
+   kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "codelab.fullname" . }}-gateway {{ .Values.services.gateway.port }}:{{ .Values.services.gateway.port }}
+
+   Auth Service:
+   kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "codelab.fullname" . }}-auth-service {{ .Values.services.authService.port }}:{{ .Values.services.authService.port }}
+{{- end }}
+
+2. Проверить статус подов:
+   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+3. Просмотреть логи:
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }} -f
+
+Компоненты:
+{{- if .Values.services.gateway.enabled }}
+  ✓ Gateway (порт {{ .Values.services.gateway.port }})
+{{- end }}
+{{- if .Values.services.authService.enabled }}
+  ✓ Auth Service (порт {{ .Values.services.authService.port }})
+{{- end }}
+{{- if .Values.services.agentRuntime.enabled }}
+  ✓ Agent Runtime (порт {{ .Values.services.agentRuntime.port }})
+{{- end }}
+{{- if .Values.services.llmProxy.enabled }}
+  ✓ LLM Proxy (порт {{ .Values.services.llmProxy.port }})
+{{- end }}
+{{- if .Values.services.redis.enabled }}
+  ✓ Redis (порт {{ .Values.services.redis.port }})
+{{- end }}
+{{- if .Values.services.postgres.enabled }}
+  ✓ PostgreSQL (порт {{ .Values.services.postgres.port }})
+{{- end }}
+
+ВАЖНО:
+- Убедитесь, что вы изменили секретные значения в values.yaml перед развертыванием в production
+- Настройте внешние сервисы (LiteLLM Proxy, Ollama) согласно вашей конфигурации
+- Для production рекомендуется использовать внешнюю PostgreSQL БД

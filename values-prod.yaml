@@ -1,0 +1,152 @@
+# Пример конфигурации для production окружения
+environment: production
+replicaCount: 3
+
+# Образы из Harbor registry
+images:
+  authService:
+    repository: harbor.openidealab.com/codelab/auth-service
+    tag: latest
+  gateway:
+    repository: harbor.openidealab.com/codelab/gateway
+    tag: latest
+  agentRuntime:
+    repository: harbor.openidealab.com/codelab/agent-runtime
+    tag: latest
+  llmProxy:
+    repository: harbor.openidealab.com/codelab/llm-proxy
+    tag: latest
+  website:
+    repository: harbor.openidealab.com/codelab/website
+    tag: latest
+
+# Настройки Ingress
+ingress:
+  enabled: true
+  className: nginx
+  host: codelab.example.com
+  tls: true
+  tlsSecretName: codelab-tls
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+
+# Используем PostgreSQL для production
+services:
+  authService:
+    database:
+      type: postgres
+      host: postgres-external.example.com
+      port: 5432
+      name: auth_db
+      user: codelab_user
+      password: "CHANGE-ME-secure-password"
+    secrets:
+      AUTH_SERVICE__MASTER_KEY: "CHANGE-ME-production-master-key"
+    persistence:
+      data:
+        enabled: true
+        size: 5Gi
+        storageClass: "fast-ssd"
+      keys:
+        enabled: true
+        size: 1Gi
+        storageClass: "fast-ssd"
+  
+  agentRuntime:
+    database:
+      type: postgres
+      host: postgres-external.example.com
+      port: 5432
+      name: agent_runtime
+      user: codelab_user
+      password: "CHANGE-ME-secure-password"
+    secrets:
+      AGENT_RUNTIME__INTERNAL_API_KEY: "CHANGE-ME-production-api-key"
+    persistence:
+      data:
+        enabled: true
+        size: 20Gi
+        storageClass: "fast-ssd"
+  
+  gateway:
+    env:
+      GATEWAY__LOG_LEVEL: "INFO"
+      GATEWAY__USE_JWT_AUTH: "true"
+    secrets:
+      GATEWAY__INTERNAL_API_KEY: "CHANGE-ME-production-api-key"
+  
+  llmProxy:
+    env:
+      LLM_PROXY__LOG_LEVEL: "INFO"
+    secrets:
+      LLM_PROXY__INTERNAL_API_KEY: "CHANGE-ME-production-api-key"
+      LLM_PROXY__LITELLM_PROXY_URL: "https://litellm-proxy.example.com"
+      LLM_PROXY__LITELLM_API_KEY: "CHANGE-ME-litellm-key"
+  
+  # Отключаем внутренний PostgreSQL, используем внешний
+  postgres:
+    enabled: false
+  
+  redis:
+    # Для production рекомендуется использовать внешний Redis Cluster
+    enabled: true
+
+# Production ресурсы
+resources:
+  authService:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 1Gi
+  
+  gateway:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 1Gi
+  
+  agentRuntime:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+    limits:
+      cpu: 4000m
+      memory: 4Gi
+  
+  llmProxy:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 1Gi
+  
+  website:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  
+  redis:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+
+# Security context для production
+securityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000

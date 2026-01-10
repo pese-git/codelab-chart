@@ -1,0 +1,20 @@
+{{- if .Values.services.agentRuntime.enabled }}
+{{- if .Values.services.agentRuntime.persistence.data.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "codelab.fullname" . }}-agent-runtime-data
+  labels:
+    {{- include "codelab.labels" . | nindent 4 }}
+    {{- include "codelab.componentLabels" "agent-runtime" | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.services.agentRuntime.persistence.data.size }}
+  {{- if .Values.services.agentRuntime.persistence.data.storageClass }}
+  storageClassName: {{ .Values.services.agentRuntime.persistence.data.storageClass }}
+  {{- end }}
+{{- end }}
+{{- end }}
