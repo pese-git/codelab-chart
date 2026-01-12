@@ -1,17 +1,31 @@
 # CodeLab Helm Chart
 
-Helm chart для развертывания микросервисной платформы CodeLab в Kubernetes.
+Helm chart для развертывания AI-powered IDE платформы CodeLab с мультиагентной системой в Kubernetes.
+
+**Версия Chart**: 1.0.0
+**App Version**: 1.0 (MVP)
+**Дата обновления**: 11 января 2026
+**Статус**: ✅ Production Ready
 
 ## Описание
 
-Этот Helm chart развертывает следующие компоненты:
+Этот Helm chart развертывает полную микросервисную платформу CodeLab:
 
-- **Gateway** - API Gateway для маршрутизации запросов
-- **Auth Service** - Сервис аутентификации и авторизации
-- **Agent Runtime** - Среда выполнения агентов
-- **LLM Proxy** - Прокси для работы с LLM моделями
-- **Redis** - Кэш и хранилище сессий
-- **PostgreSQL** - Реляционная база данных
+**Основные сервисы:**
+- **Gateway** (порт 8000) - WebSocket прокси с JWT аутентификацией
+- **Auth Service** (порт 8003) - OAuth2 Authorization Server с RS256 JWT
+- **Agent Runtime** (порт 8001) - Мультиагентная система (5 агентов) с HITL
+- **LLM Proxy** (порт 8002) - Унифицированный доступ к LLM провайдерам
+
+**Инфраструктурные компоненты:**
+- **Redis** (порт 6379) - Кэш, сессии, rate limiting
+- **PostgreSQL** (порт 5432) - Персистентное хранилище (sessions, users, HITL)
+- **Website** (опционально) - Docusaurus документация
+
+**Ingress:**
+- Nginx Ingress Controller для внешнего доступа
+- TLS/SSL поддержка через cert-manager
+- WebSocket поддержка
 
 ## Предварительные требования
 
