@@ -2,321 +2,227 @@
 
 Helm chart для развертывания AI-powered IDE платформы CodeLab с мультиагентной системой в Kubernetes.
 
-**Версия Chart**: 1.0.0
-**App Version**: 1.0 (MVP)
-**Дата обновления**: 11 января 2026
+**Версия Chart**: 0.1.0  
+**Версия приложения**: 1.0.0  
+**Дата обновления**: 21 января 2026  
 **Статус**: ✅ Production Ready
 
 ## Описание
 
-Этот Helm chart развертывает полную микросервисную платформу CodeLab:
+Этот Helm chart развертывает полную микросервисную платформу CodeLab, включающую:
 
-**Основные сервисы:**
-- **Gateway** (порт 8000) - WebSocket прокси с JWT аутентификацией
-- **Auth Service** (порт 8003) - OAuth2 Authorization Server с RS256 JWT
-- **Agent Runtime** (порт 8001) - Мультиагентная система (5 агентов) с HITL
-- **LLM Proxy** (порт 8002) - Унифицированный доступ к LLM провайдерам
+### Основные сервисы
 
-**Инфраструктурные компоненты:**
-- **Redis** (порт 6379) - Кэш, сессии, rate limiting
-- **PostgreSQL** (порт 5432) - Персистентное хранилище (sessions, users, HITL)
-- **Website** (опционально) - Docusaurus документация
+- **Gateway** (порт 8000) - WebSocket прокси с JWT аутентификацией для взаимодействия с клиентами
+- **Auth Service** (порт 8003) - OAuth2 Authorization Server с RS256 JWT для управления аутентификацией
+- **Agent Runtime** (порт 8001) - Мультиагентная система с поддержкой HITL (Human-in-the-Loop)
+- **LLM Proxy** (порт 8002) - Унифицированный прокси для доступа к различным LLM провайдерам
 
-**Ingress:**
-- Nginx Ingress Controller для внешнего доступа
-- TLS/SSL поддержка через cert-manager
-- WebSocket поддержка
+### Инфраструктурные компоненты
 
-## Предварительные требования
+- **Redis** (порт 6379) - Кэширование, управление сессиями, rate limiting
+- **PostgreSQL** (порт 5432) - Персистентное хранилище данных (сессии, пользователи, HITL данные)
+- **Website** (порт 80) - Веб-интерфейс (опционально)
+
+### Сетевые компоненты
+
+- **Ingress** - Nginx Ingress Controller для внешнего доступа
+- Поддержка TLS/SSL через cert-manager
+- Поддержка WebSocket соединений
+
+## Быстрый старт
+
+### Предварительные требования
 
 - Kubernetes 1.19+
 - Helm 3.0+
 - Nginx Ingress Controller (если используется Ingress)
-- Persistent Volume provisioner (для хранения данных)
-
-## Установка
+- Persistent Volume provisioner для хранения данных
 
 ### Базовая установка
 
 ```bash
-helm install codelab ./codelab
-```
-
-### Установка с кастомными значениями
-
-```bash
-helm install codelab ./codelab -f custom-values.yaml
-```
-
-### Установка в определенный namespace
-
-```bash
+# Создать namespace
 kubectl create namespace codelab
-helm install codelab ./codelab -n codelab
+
+# Установить chart с настройками для разработки
+helm install codelab ./codelab-chart -f ./codelab-chart/values-dev.yaml -n codelab
 ```
 
-## Конфигурация
+### Проверка статуса
 
-### Основные параметры
+```bash
+# Проверить статус релиза
+helm status codelab -n codelab
+
+# Проверить поды
+kubectl get pods -n codelab
+
+# Просмотреть логи
+kubectl logs -n codelab -l app.kubernetes.io/instance=codelab -f
+```
+
+## Документация
+
+Подробная документация находится в директории [`doc/`](doc/):
+
+- **[Архитектура](doc/ARCHITECTURE.md)** - Описание архитектуры и компонентов системы
+- **[Развертывание](doc/DEPLOYMENT.md)** - Руководство по развертыванию в различных окружениях
+- **[Конфигурация](doc/CONFIGURATION.md)** - Подробное описание параметров конфигурации
+- **[Быстрый старт](QUICKSTART.md)** - Пошаговое руководство для быстрого запуска
+- **[Настройка Harbor](HARBOR-SETUP.md)** - Настройка доступа к приватному Harbor registry
+- **[Настройка Let's Encrypt](LETSENCRYPT.md)** - Настройка автоматических SSL сертификатов
+
+## Примеры конфигураций
+
+### Development окружение
+
+```bash
+helm install codelab ./codelab-chart -f ./codelab-chart/values-dev.yaml -n codelab-dev
+```
+
+Особенности:
+- SQLite для баз данных
+- Минимальные ресурсы
+- Отключена JWT аутентификация
+- Локальный домен `codelab.local`
+
+### Staging окружение
+
+```bash
+helm install codelab ./codelab-chart -f ./codelab-chart/values-stage.yaml -n codelab-stage
+```
+
+Особенности:
+- PostgreSQL (внутренний)
+- Средние ресурсы
+- TLS с Let's Encrypt staging
+- 2 реплики сервисов
+
+### Production окружение
+
+```bash
+helm install codelab ./codelab-chart -f ./codelab-chart/values-prod.yaml -n codelab-prod
+```
+
+Особенности:
+- PostgreSQL (внешний, рекомендуется)
+- Максимальные ресурсы
+- TLS с Let's Encrypt production
+- 3 реплики сервисов
+- Все секреты должны быть изменены
+
+## Основные параметры
 
 | Параметр | Описание | Значение по умолчанию |
 |----------|----------|----------------------|
 | `environment` | Окружение развертывания | `development` |
 | `replicaCount` | Количество реплик | `1` |
-
-### Ingress
-
-| Параметр | Описание | Значение по умолчанию |
-|----------|----------|----------------------|
 | `ingress.enabled` | Включить Ingress | `true` |
-| `ingress.className` | Класс Ingress контроллера | `nginx` |
 | `ingress.host` | Хост для доступа | `codelab.example.com` |
 | `ingress.tls` | Включить TLS | `false` |
 
-### Образы
-
-Для каждого сервиса можно настроить образ:
-
-```yaml
-images:
-  authService:
-    repository: your-registry/auth-service
-    tag: latest
-    pullPolicy: IfNotPresent
-```
-
-### Базы данных
-
-#### Auth Service
-
-```yaml
-services:
-  authService:
-    database:
-      type: "sqlite"  # или "postgres"
-      sqliteUrl: "sqlite:///data/auth.db"
-      # Для PostgreSQL:
-      # type: "postgres"
-      # host: "postgres"
-      # port: 5432
-      # name: "auth_db"
-      # user: "codelab"
-      # password: "codelab_password"
-```
-
-#### Agent Runtime
-
-```yaml
-services:
-  agentRuntime:
-    database:
-      type: "sqlite"  # или "postgres"
-      sqliteUrl: "sqlite:///data/agent_runtime.db"
-```
-
-### Persistent Storage
-
-Для каждого сервиса можно настроить хранилище:
-
-```yaml
-services:
-  authService:
-    persistence:
-      data:
-        enabled: true
-        size: 1Gi
-        storageClass: ""  # Использовать default StorageClass
-```
-
-### Ресурсы
-
-Настройка ресурсов для каждого сервиса:
-
-```yaml
-resources:
-  gateway:
-    requests:
-      cpu: 200m
-      memory: 256Mi
-    limits:
-      cpu: 1000m
-      memory: 512Mi
-```
-
-## Примеры использования
-
-### Пример 1: Минимальная конфигурация для разработки
-
-```yaml
-# dev-values.yaml
-environment: development
-replicaCount: 1
-
-ingress:
-  enabled: true
-  host: codelab.local
-  tls: false
-
-services:
-  authService:
-    database:
-      type: sqlite
-  agentRuntime:
-    database:
-      type: sqlite
-```
-
-```bash
-helm install codelab ./codelab -f dev-values.yaml
-```
-
-### Пример 2: Production конфигурация с внешней БД
-
-```yaml
-# prod-values.yaml
-environment: production
-replicaCount: 3
-
-ingress:
-  enabled: true
-  host: codelab.example.com
-  tls: true
-  tlsSecretName: codelab-tls
-
-services:
-  authService:
-    database:
-      type: postgres
-      host: external-postgres.example.com
-      port: 5432
-      name: auth_db
-      user: codelab_user
-      password: "secure-password"
-    secrets:
-      AUTH_SERVICE__MASTER_KEY: "production-master-key"
-  
-  agentRuntime:
-    database:
-      type: postgres
-      host: external-postgres.example.com
-      port: 5432
-      name: agent_runtime
-      user: codelab_user
-      password: "secure-password"
-  
-  postgres:
-    enabled: false  # Используем внешнюю БД
-
-resources:
-  gateway:
-    requests:
-      cpu: 500m
-      memory: 512Mi
-    limits:
-      cpu: 2000m
-      memory: 1Gi
-```
-
-```bash
-helm install codelab ./codelab -f prod-values.yaml -n production
-```
-
-### Пример 3: Отключение внутреннего PostgreSQL
-
-```yaml
-services:
-  postgres:
-    enabled: false
-  
-  authService:
-    database:
-      type: postgres
-      url: "postgresql+asyncpg://user:pass@external-host:5432/auth_db"
-  
-  agentRuntime:
-    database:
-      type: postgres
-      url: "postgresql+asyncpg://user:pass@external-host:5432/agent_runtime"
-```
+Полный список параметров см. в [документации по конфигурации](doc/CONFIGURATION.md).
 
 ## Обновление
 
 ```bash
-helm upgrade codelab ./codelab -f values.yaml
+# Обновить релиз
+helm upgrade codelab ./codelab-chart -f ./codelab-chart/values-dev.yaml -n codelab
+
+# Откатить к предыдущей версии
+helm rollback codelab -n codelab
 ```
 
 ## Удаление
 
 ```bash
-helm uninstall codelab
-```
+# Удалить релиз
+helm uninstall codelab -n codelab
 
-**Внимание:** PersistentVolumeClaims не удаляются автоматически. Для их удаления:
-
-```bash
-kubectl delete pvc -l app.kubernetes.io/instance=codelab
-```
-
-## Проверка статуса
-
-```bash
-# Статус релиза
-helm status codelab
-
-# Статус подов
-kubectl get pods -l app.kubernetes.io/instance=codelab
-
-# Логи
-kubectl logs -l app.kubernetes.io/instance=codelab -f
-
-# Проверка Ingress
-kubectl get ingress
-```
-
-## Troubleshooting
-
-### Проблемы с подключением к БД
-
-Проверьте логи сервиса:
-```bash
-kubectl logs -l app.kubernetes.io/component=auth-service
-```
-
-Проверьте секреты:
-```bash
-kubectl get secret codelab-auth-service-secret -o yaml
-```
-
-### Проблемы с Persistent Volumes
-
-Проверьте PVC:
-```bash
-kubectl get pvc
-kubectl describe pvc codelab-auth-service-data
-```
-
-### Проблемы с Ingress
-
-Проверьте Ingress:
-```bash
-kubectl describe ingress codelab
-```
-
-Проверьте логи Ingress контроллера:
-```bash
-kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
+# Удалить PersistentVolumeClaims (опционально)
+kubectl delete pvc -l app.kubernetes.io/instance=codelab -n codelab
 ```
 
 ## Безопасность
 
 ⚠️ **ВАЖНО:** Перед развертыванием в production:
 
-1. Измените все секретные значения в `values.yaml`
+1. Измените все секретные значения в values файле
 2. Используйте Kubernetes Secrets или внешние системы управления секретами (Vault, Sealed Secrets)
 3. Включите TLS для Ingress
 4. Настройте Network Policies
 5. Используйте внешнюю PostgreSQL БД с резервным копированием
+6. Настройте мониторинг и алертинг
+
+## Troubleshooting
+
+### Проблемы с образами
+
+Если возникают ошибки `ImagePullBackOff`, см. [HARBOR-SETUP.md](HARBOR-SETUP.md).
+
+### Проблемы с базой данных
+
+```bash
+# Проверить логи сервиса
+kubectl logs -n codelab -l app.kubernetes.io/component=auth-service
+
+# Проверить подключение к PostgreSQL
+kubectl exec -it -n codelab deployment/codelab-postgres -- psql -U codelab -d codelab -c '\l'
+```
+
+### Проблемы с Ingress
+
+```bash
+# Проверить Ingress
+kubectl describe ingress codelab -n codelab
+
+# Проверить логи Ingress контроллера
+kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
+```
+
+## Структура проекта
+
+```
+codelab-chart/
+├── Chart.yaml              # Метаданные chart
+├── values.yaml             # Значения по умолчанию
+├── values-dev.yaml         # Конфигурация для development
+├── values-stage.yaml       # Конфигурация для staging
+├── values-stage-minimal.yaml # Минимальная конфигурация для staging
+├── values-prod.yaml        # Конфигурация для production
+├── templates/              # Kubernetes манифесты
+│   ├── _helpers.tpl        # Вспомогательные шаблоны
+│   ├── ingress.yaml        # Ingress конфигурация
+│   ├── *-deployment.yaml   # Deployments для сервисов
+│   ├── *-service.yaml      # Services для сервисов
+│   ├── *-secret.yaml       # Secrets для сервисов
+│   ├── *-pvc.yaml          # PersistentVolumeClaims
+│   └── NOTES.txt           # Инструкции после установки
+├── doc/                    # Документация
+│   ├── ARCHITECTURE.md     # Архитектура системы
+│   ├── DEPLOYMENT.md       # Руководство по развертыванию
+│   └── CONFIGURATION.md    # Описание конфигурации
+├── README.md               # Этот файл
+├── QUICKSTART.md           # Быстрый старт
+├── HARBOR-SETUP.md         # Настройка Harbor
+└── LETSENCRYPT.md          # Настройка Let's Encrypt
+```
+
+## Поддержка
+
+При возникновении проблем:
+
+1. Проверьте логи подов: `kubectl logs -n codelab -l app.kubernetes.io/instance=codelab`
+2. Проверьте события: `kubectl get events -n codelab --sort-by='.lastTimestamp'`
+3. Проверьте статус ресурсов: `kubectl get all -n codelab`
+4. Обратитесь к документации в директории `doc/`
 
 ## Лицензия
 
-[Укажите лицензию]
+См. файл [LICENSE](../LICENSE) в корне проекта.
+
+## Связанные проекты
+
+- [codelab-ai-service](../codelab-ai-service/) - Backend сервисы CodeLab
+- [codelab_ide](../codelab_ide/) - Flutter IDE клиент
