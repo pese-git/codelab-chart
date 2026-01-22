@@ -1,5 +1,9 @@
 # CodeLab Helm Chart - Быстрый старт
 
+Это руководство поможет вам быстро развернуть CodeLab в Kubernetes кластере.
+
+Для более подробной информации см. [Руководство по развертыванию](doc/DEPLOYMENT.md).
+
 ## Предварительные требования
 
 1. Kubernetes кластер (minikube, kind, или облачный провайдер)
@@ -281,3 +285,11 @@ kubectl exec -it <pod-name> -n codelab-dev -- /bin/sh
 1. Проверьте логи подов
 2. Проверьте события: `kubectl get events -n codelab-dev --sort-by='.lastTimestamp'`
 3. Проверьте статус ресурсов: `kubectl get all -n codelab-dev`
+
+## Дополнительная документация
+
+- [Архитектура системы](doc/ARCHITECTURE.md)
+- [Руководство по развертыванию](doc/DEPLOYMENT.md)
+- [Конфигурация параметров](doc/CONFIGURATION.md)
+- [Настройка Harbor Registry](HARBOR-SETUP.md)
+- [Настройка Let's Encrypt](LETSENCRYPT.md)
